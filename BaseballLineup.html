@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Lineup Generator</title>
+    <script type="text/javascript">
+    var reader; //GLOBAL File Reader object for demo purpose only
+    var textFile;
+	Array.prototype.move = function (old_index, new_index) {
+	    if (new_index >= this.length) {
+	        var k = new_index - this.length;
+	        while ((k--) + 1) {
+	            this.push(undefined);
+	        }
+	    }
+	    this.splice(new_index, 0, this.splice(old_index, 1)[0]);
+	    return this; // for testing purposes
+	};
+
+	Array.prototype.contains = function(obj) {
+	    var i = this.length;
+	    while (i--) {
+	        if (this[i] === obj) {
+	            return true;
+	        }
+	    }
+	    return false;
+	}
+
+    /**
+     * Check for the various File API support.
+     */
+    function checkFileAPI() {
+        if (window.File && window.FileReader && window.FileList && window.Blob) {
+            reader = new FileReader();
+            return true; 
+        } else {
+            alert('The File APIs are not fully supported by your browser. Fallback required.');
+            return false;
+        }
+    }
+
+    /**
+     * read text input
+     */
+    function readText(filePath) {
+        var output = ""; //placeholder for text output
+        if(filePath.files && filePath.files[0]) {           
+            reader.onload = function (e) {
+                output = e.target.result;
+                sortContents(output);
+            };//end onload()
+            reader.readAsText(filePath.files[0]);
+        }//end if html5 filelist support
+        else if(ActiveXObject && filePath) { //fallback to IE 6-8 support via ActiveX
+            try {
+                reader = new ActiveXObject("Scripting.FileSystemObject");
+                var file = reader.OpenTextFile(filePath, 1); //ActiveX File Object
+                output = file.ReadAll(); //text contents of file
+                file.Close(); //close file "input stream"
+                sortContents(output);
+            } catch (e) {
+                if (e.number == -2146827859) {
+                    alert('Unable to access local files due to browser security settings. ' + 
+                     'To overcome this, go to Tools->Internet Options->Security->Custom Level. ' + 
+                     'Find the setting for "Initialize and script ActiveX controls not marked as safe" and change it to "Enable" or "Prompt"'); 
+                }
+            }       
+        }
+        else { //this is where you could fallback to Java Applet, Flash or similar
+            return false;
+        }       
+        return true;
+    }   
+
+    var team = [];
+    var numberOfGirls;
+    var playersOnTheField = 9;
+    var totalInnings = 7;
+
+    //sorts the contents of the txt file and separates into players
+    function sortContents(txt) {
+    	var ks = txt.split("\n");
+    	ks.forEach(stringToBallPlayer)
+    	generatePositions();
+    	generateTable();
+    }
+
+    //generates a new lineup once the txt file has already been sorted
+    function generateNewLineup()
+    {
+    	for(var i=0; i<team.length; i++)
+    	{	
+    		resetPlayer(team[i]);
+    	}
+    	generatePositions();
+    	generateTable();
+    }
+
+    //resets players for when a new lineup is being created
+    function resetPlayer(player)
+    {
+    	player.playedLast = false;
+    	player.positions = [];
+    	player.inningsPlayed = 0;
+    }
+
+    //generates the positions for each of the players for the game
+    function generatePositions()
+    {
+    	team = shuffle(team);
+    	team = sortTeamByGender(team);
+
+    	for(var i=0; i<totalInnings; i++)
+    	{
+    		//for each inning...
+    		var thisInningsPlayers = getPlayersPlayingThisInning(i, team);
+    		setPositionsForInning(thisInningsPlayers, i);
+    		resetInningsPlayed(thisInningsPlayers);
+    	}
+    }
+
+    //marks who has played the current inning and who hasn't
+    function resetInningsPlayed(players)
+    {
+    	for(var i=0; i<team.length; i++)
+    	{
+    		if(players.contains(team[i]))
+    		{
+    			team[i].playedLast = true;
+    		}else{
+    			team[i].playedLast = false;
+    		}
+    	}
+    }
+
+    //decides which positions each player will receive for an inning
+    function setPositionsForInning(players, inning)
+    {
+    	var allPositions = ["1", "2", "3", "SS", "LF", "RF", "CF", "BC", "R"];
+    	//go through all players
+    	for(var i=players.length-1; i>=0; i--)
+    	{
+    		players[i].inningsPlayed++;
+    		for(var j=0; j<players[i].preferredPositions.length; j++)
+    		{
+    			//search for an open preferred position
+    			if(allPositions.contains(players[i].preferredPositions[j]))
+    			{
+    				players[i].positions[inning] = players[i].preferredPositions[j];
+    				allPositions.splice(allPositions.indexOf(players[i].preferredPositions[j]), 1);
+    				break;
+    			}
+    		}
+
+    		//if a preferred position isn't available, give a random available position
+    		if(typeof players[i].positions[inning] ==  'undefined' )
+    		{
+    			var randPosition = Math.floor(Math.random() * allPositions.length);
+    			players[i].positions[inning] = allPositions[randPosition];
+    			allPositions.splice(randPosition, 1);
+    		}
+    	}
+    }
+
+    //gets an array of playesr who should be on this inning
+    function getPlayersPlayingThisInning(inning, team)
+    {
+    	var playersToPlay = [];
+    	var requiredGirls = Math.ceil(team.length*0.25);
+    	var requiredGuys = Math.floor(playersOnTheField - requiredGirls);
+    	var playedInningDescrepency = totalInnings/3;
+    	//handle the girls positions first
+    	while(playersToPlay.length < requiredGirls)
+    	{
+	    	for(var i=(team.length-1); i >= (team.length - numberOfGirls); i--)
+	    	{
+	    		if(playersToPlay.length == requiredGirls)
+	    		{
+	    			break;
+	    		}
+	    		else if(requiredGirls == numberOfGirls)
+	    		{
+	    			//if there are just enough girls, play them all
+					playersToPlay.push(team[i]);
+	    		}else{
+		    		if(!team[i].playedLast && !playersToPlay.contains(team[i]))
+		    		{
+		    			playersToPlay.push(team[i]);
+		    		}else if(team[i].inningsPlayed < (inning-playedInningDescrepency) && !playersToPlay.contains(team[i])){
+		    			//they haven't played every inning
+		    			playersToPlay.push(team[i]);
+		    		}
+	    		}
+	    	}
+	    	playedInningDescrepency--;
+    	}
+
+		playedInningDescrepency = totalInnings/3;
+
+		while(playersToPlay.length < playersOnTheField)
+    	{
+	    	//handle guys positions
+	    	for(var i=0; i < (team.length - numberOfGirls); i++)
+	    	{
+	    		if(playersToPlay.length == playersOnTheField)
+	    		{
+	    			break;
+	    		}
+	    		else if(requiredGuys == (team.length-numberOfGirls))
+	    		{
+	    			//if there are just enough guys, play them all
+					playersToPlay.push(team[i]);
+	    		}else{
+		    		if(!team[i].playedLast && !playersToPlay.contains(team[i]))
+		    		{
+		    			playersToPlay.push(team[i]);
+		    		}else if(team[i].inningsPlayed < (inning-playedInningDescrepency) && !playersToPlay.contains(team[i])){
+		    			//they haven't played every inning
+		    			playersToPlay.push(team[i]);
+		    		}
+	    		}
+	    	}
+	    	playedInningDescrepency--;
+    	}
+
+    	//this makes sure priority is random
+    	return shuffle(playersToPlay);
+    }
+
+    //this sorts the array by gender and counts the number of girls
+    function sortTeamByGender(array)
+    {
+    	//temp number of girls playing
+    	var tg = 0;
+
+		for(var i = 0; i<array.length; i++)
+    	{
+    		if(team[i].gender == "f")
+    		{
+    			tg++;
+    		}
+    	}
+
+    	for(var i = 0; i<array.length; i++)
+    	{
+    		if(team[i].gender == "f" && i<team.length-tg)
+    		{
+    			team.move(i, team.length-1);
+    			i--;
+    		}
+    	}
+
+    	numberOfGirls = tg;
+
+    	return array;
+    }
+
+    //turns our strings into players
+    function stringToBallPlayer(item, index, arr){
+    	var n = item.substr(0, item.indexOf('.')); 
+    	var g = item.substr(item.indexOf('.') + 1, 1);
+    	var pp = item.substr(item.indexOf('{') + 1);
+    	pp = pp.split(',');
+    	var newPlayer = new ballPlayer(n, g, pp);
+    	team.push(newPlayer);
+    }
+
+    //generates the actual table that we see on the web page
+    function generateTable()
+    {
+    	var el = document.getElementById('main'); 
+
+    	var ks = "<table>";
+    	ks += "<tr><td>Batting Order</td>";
+    	for(var m=0; m<totalInnings; m++)
+    	{
+    		ks += "<td>";
+    		ks += (m+1);
+    		ks += "</td>";
+    	}
+		ks += "</tr>";
+    	for(var i=0; i<team.length; i++){
+    		ks += "<tr>";
+    		for(var j=0; j<totalInnings+1; j++){
+    			ks += "<td";
+    			if(j==0){
+    				ks += " class='name'>";
+    				ks += team[i].name;
+    			}else{
+    				if(typeof team[i].positions[j-1] != 'undefined')
+    				{
+    					switch (team[i].positions[j-1]) {
+				        case "RF": 
+				        case "LF":
+				        case "CF":
+				        	ks += " class='fielder'>";
+				            // Do something.
+				            break;
+				        case "1": 
+				        case "2":
+				        case "3":
+				        case "SS":
+				        	ks += " class='infielder'>"; 
+				            // Do something.
+				            break;
+				        case "BC": 
+				        	ks += " class='backcatcher'>";
+				            // Do something.
+				            break;
+				        case "R":
+				        	ks += " class='rover'>";
+				            break;
+				        default:
+				        	ks += ">";
+				            break;
+    }
+						ks += team[i].positions[j-1];
+    				}else
+    				{
+    					ks += ">";
+    				}
+    			}
+    			ks += "</td>";
+    		}
+    		ks += "</tr>";
+    	}
+    	ks += "</table>";
+
+    	el.innerHTML = "";
+    	el.innerHTML = ks;
+    }
+
+    function ballPlayer(name, gender, preferredPositions){
+    	this.name = name;
+    	this.gender = gender;
+    	this.preferredPositions = preferredPositions;
+    	this.playedLast = false;
+    	this.positions = [];
+    	this.inningsPlayed = 0;
+    }
+
+    function shuffle(array) {
+	  var currentIndex = array.length, temporaryValue, randomIndex;
+
+	  // While there remain elements to shuffle...
+	  while (0 !== currentIndex) {
+
+	    // Pick a remaining element...
+	    randomIndex = Math.floor(Math.random() * currentIndex);
+	    currentIndex -= 1;
+
+	    // And swap it with the current element.
+	    temporaryValue = array[currentIndex];
+	    array[currentIndex] = array[randomIndex];
+	    array[randomIndex] = temporaryValue;
+	  }
+
+	  return array;
+	}
+</script>
+
+<style>
+.name{
+	text-align: left;
+}
+.fielder{
+	color: #558139;
+}
+.infielder{
+	color: #c45920;
+}
+.backcatcher{
+	color: #6f359e;
+}
+.rover{
+	color: #3376b3;
+}
+
+table {
+    border-collapse: collapse;
+    font-family: "Helvetica";
+}
+
+table, th, td {
+    border: 1px solid black;
+}
+
+td{
+	text-align: center;
+	padding: 10px;
+	font-weight: bold;
+}
+</style>
+
+</head>
+<body onload="checkFileAPI();">
+    <div id="container">    
+        <input type="file" onchange='readText(this)' />
+        <br/>
+        <hr/>
+        <input id="GenerateLineup" type="button" value="GenerateLineup" onclick="generateNewLineup();" />
+        <div id="main">
+            ...
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+Paden.m{SS,CF,1,2
+Andrew.m{CF,R,1,2,SS
+Trevor.m{CF,LF,RF,R
+KyleP.m{1,RF,LF
+Matt.m{2,1,SS,R
+KyleG.m{2,SS,1
+Brandon.m{RF,CF,LF,R
+Scott.m{LF,2,RF,CF
+Lauryn.f{RF,LF,BC,R
+Toni.f{R,3,BC,RF,LF
+Rachel.f{R,3,BC,RF,LF
+Shannon.f{2,3,BC,RF,LF
