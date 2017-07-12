@@ -2,7 +2,18 @@
 <html>
   <head>
     <title>Lineup Generator</title>
+
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
     <script type="text/javascript">
+
+    function wireReorderList() {
+        $("#sort tbody").sortable();
+        //alert("BALOOGA");
+        $("#sort tbody").disableSelection();
+    }
+
     var reader; //GLOBAL File Reader object for demo purpose only
     var textFile;
 	Array.prototype.move = function (old_index, new_index) {
@@ -76,6 +87,7 @@
     var numberOfGirls;
     var playersOnTheField = 9;
     var totalInnings = 7;
+    var preferenceWeight = 0.80;
 
     //sorts the contents of the txt file and separates into players
     function sortContents(txt) {
@@ -138,16 +150,23 @@
     {
     	var allPositions = ["1", "2", "3", "SS", "LF", "RF", "CF", "BC", "R"];
     	//go through all players
-    	for(var i=players.length-1; i>=0; i--)
+    	for(var i=0; i<players.length; i++)
     	{
     		players[i].inningsPlayed++;
     		for(var j=0; j<players[i].preferredPositions.length; j++)
     		{
     			//search for an open preferred position
-    			if(allPositions.contains(players[i].preferredPositions[j]))
+                
+                //uses a weight on which position it should set as preference
+                var k = j;
+                if(Math.random() > preferenceWeight && j<(players[i].preferredPositions.length-1)){
+                    k++;
+                }
+
+    			if(allPositions.contains(players[i].preferredPositions[k]))
     			{
-    				players[i].positions[inning] = players[i].preferredPositions[j];
-    				allPositions.splice(allPositions.indexOf(players[i].preferredPositions[j]), 1);
+    				players[i].positions[inning] = players[i].preferredPositions[k];
+    				allPositions.splice(allPositions.indexOf(players[i].preferredPositions[k]), 1);
     				break;
     			}
     		}
@@ -156,14 +175,21 @@
     		if(typeof players[i].positions[inning] ==  'undefined' )
     		{
     			var randPosition = Math.floor(Math.random() * allPositions.length);
+                /*if(players[i].gender == "m"){
+                    while(allPositions[randPosition] == "BC"){
+                        randPosition = Math.floor(Math.random() * allPositions.length);
+                    }
+                }*/
     			players[i].positions[inning] = allPositions[randPosition];
     			allPositions.splice(randPosition, 1);
     		}
+
+            //console.log("Setting " + players[i].name + "'s position to " + players[i].positions[inning]);
     	}
     }
 
     //gets an array of playesr who should be on this inning
-    function getPlayersPlayingThisInning(inning, team)
+    function getPlayersPlayingThisInning(inning, tempTeam)
     {
     	var playersToPlay = [];
     	var requiredGirls = Math.ceil(team.length*0.25);
@@ -172,7 +198,7 @@
     	//handle the girls positions first
     	while(playersToPlay.length < requiredGirls)
     	{
-	    	for(var i=(team.length-1); i >= (team.length - numberOfGirls); i--)
+	    	for(var i=(tempTeam.length-1); i >= (tempTeam.length - numberOfGirls); i--)
 	    	{
 	    		if(playersToPlay.length == requiredGirls)
 	    		{
@@ -181,14 +207,14 @@
 	    		else if(requiredGirls == numberOfGirls)
 	    		{
 	    			//if there are just enough girls, play them all
-					playersToPlay.push(team[i]);
+					playersToPlay.push(tempTeam[i]);
 	    		}else{
-		    		if(!team[i].playedLast && !playersToPlay.contains(team[i]))
+		    		if(!tempTeam[i].playedLast && !playersToPlay.contains(tempTeam[i]))
 		    		{
-		    			playersToPlay.push(team[i]);
-		    		}else if(team[i].inningsPlayed < (inning-playedInningDescrepency) && !playersToPlay.contains(team[i])){
+		    			playersToPlay.push(tempTeam[i]);
+		    		}else if(tempTeam[i].inningsPlayed < (inning-playedInningDescrepency) && !playersToPlay.contains(tempTeam[i])){
 		    			//they haven't played every inning
-		    			playersToPlay.push(team[i]);
+		    			playersToPlay.push(tempTeam[i]);
 		    		}
 	    		}
 	    	}
@@ -200,23 +226,23 @@
 		while(playersToPlay.length < playersOnTheField)
     	{
 	    	//handle guys positions
-	    	for(var i=0; i < (team.length - numberOfGirls); i++)
+	    	for(var i=0; i < (tempTeam.length - numberOfGirls); i++)
 	    	{
 	    		if(playersToPlay.length == playersOnTheField)
 	    		{
 	    			break;
 	    		}
-	    		else if(requiredGuys == (team.length-numberOfGirls))
+	    		else if(requiredGuys == (tempTeam.length-numberOfGirls))
 	    		{
 	    			//if there are just enough guys, play them all
-					playersToPlay.push(team[i]);
+					playersToPlay.push(tempTeam[i]);
 	    		}else{
-		    		if(!team[i].playedLast && !playersToPlay.contains(team[i]))
+		    		if(!tempTeam[i].playedLast && !playersToPlay.contains(tempTeam[i]))
 		    		{
-		    			playersToPlay.push(team[i]);
-		    		}else if(team[i].inningsPlayed < (inning-playedInningDescrepency) && !playersToPlay.contains(team[i])){
+		    			playersToPlay.push(tempTeam[i]);
+		    		}else if(tempTeam[i].inningsPlayed < (inning-playedInningDescrepency) && !playersToPlay.contains(tempTeam[i])){
 		    			//they haven't played every inning
-		    			playersToPlay.push(team[i]);
+		    			playersToPlay.push(tempTeam[i]);
 		    		}
 	    		}
 	    	}
@@ -224,7 +250,8 @@
     	}
 
     	//this makes sure priority is random
-    	return shuffle(playersToPlay);
+        playersToPlay = sortTeamBySex(playersToPlay);
+    	return playersToPlay;
     }
 
     //this sorts the array by gender and counts the number of girls
@@ -255,9 +282,28 @@
     	return array;
     }
 
+    function sortTeamBySex(array)
+    {
+        sortedArray = [];
+
+        for(var i=0; i<array.length; i++)
+        {
+            if(array[i].gender == "f")
+            {
+                sortedArray.push(array[i]);
+                console.log("Moving " + array[i].name + " to the end of the array.");
+            }else{
+                sortedArray.unshift(array[i]);
+                console.log("Moving " + array[i].name + " to the beginning of the array.");
+            }
+        }
+
+        return sortedArray;
+    }
+
     //turns our strings into players
     function stringToBallPlayer(item, index, arr){
-    	var n = item.substr(0, item.indexOf('.')); 
+    	var n = item.substr(0, item.indexOf('.'));
     	var g = item.substr(item.indexOf('.') + 1, 1);
     	var pp = item.substr(item.indexOf('{') + 1);
     	pp = pp.split(',');
@@ -270,15 +316,15 @@
     {
     	var el = document.getElementById('main'); 
 
-    	var ks = "<table>";
-    	ks += "<tr><td>Batting Order</td>";
+    	var ks = "<input id='GenerateLineup' type='button' value='GenerateLineup' onclick='generateNewLineup();'' /><br/><br/><br/><table id='sort'>";
+    	ks += "<thead><tr><th id='mainTitle'>Batting Order</th>";
     	for(var m=0; m<totalInnings; m++)
     	{
-    		ks += "<td>";
+    		ks += "<th>";
     		ks += (m+1);
-    		ks += "</td>";
+    		ks += "</th>";
     	}
-		ks += "</tr>";
+		ks += "</tr></thead><tbody>";
     	for(var i=0; i<team.length; i++){
     		ks += "<tr>";
     		for(var j=0; j<totalInnings+1; j++){
@@ -314,7 +360,9 @@
 				        	ks += ">";
 				            break;
     }
-						ks += team[i].positions[j-1];
+						ks += "<input type='text' value='";
+                        ks += team[i].positions[j-1];
+                        ks += "'>";
     				}else
     				{
     					ks += ">";
@@ -324,10 +372,13 @@
     		}
     		ks += "</tr>";
     	}
-    	ks += "</table>";
+        
+    	ks += "</tbody></table>";
 
     	el.innerHTML = "";
     	el.innerHTML = ks;
+
+        wireReorderList();
     }
 
     function ballPlayer(name, gender, preferredPositions){
@@ -363,26 +414,49 @@
 .name{
 	text-align: left;
 }
+
 .fielder{
-	color: #558139;
+	color: #558139 !important;
 }
 .infielder{
-	color: #c45920;
+	color: #c45920 !important;
 }
 .backcatcher{
-	color: #6f359e;
+	color: #6f359e !important;
 }
 .rover{
-	color: #3376b3;
+	color: #3376b3 !important;
+}
+
+input[type=text] {
+    border: none;
+    font-size: 12pt;
+    text-align: center;
+    width: 25px;
+    background-color:rgba(0,0,0,0);
 }
 
 table {
     border-collapse: collapse;
     font-family: "Helvetica";
+    /*background-image: url("logo.png");
+    background-size: 100%;
+    background-repeat: no-repeat;
+    background-position: center;*/
+}
+
+tbody tr:nth-child(odd) {
+   background-color: rgba(0,0,0,0.06);
 }
 
 table, th, td {
     border: 1px solid black;
+    border:none;
+    min-width: 50px;
+}
+
+table thead tr {
+    border-bottom: solid 3px #666;
 }
 
 td{
@@ -390,6 +464,20 @@ td{
 	padding: 10px;
 	font-weight: bold;
 }
+
+th{
+   padding: 10px;
+    font-weight: bold; 
+}
+
+table .name{
+    border-right: solid 3px #666;
+}
+
+table #mainTitle{
+     border-right: solid 3px #666;
+}
+
 </style>
 
 </head>
@@ -398,7 +486,6 @@ td{
         <input type="file" onchange='readText(this)' />
         <br/>
         <hr/>
-        <input id="GenerateLineup" type="button" value="GenerateLineup" onclick="generateNewLineup();" />
         <div id="main">
             ...
         </div>

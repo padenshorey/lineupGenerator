@@ -1,0 +1,12 @@
+Paden Shorey.m{SS,CF,1,2
+Andrew Evans.m{R,CF,1,2,SS
+Trevor Spence.m{CF,LF,RF,R
+Kyle Pellegroms.m{1,RF,LF
+Matt Leung.m{2,1,SS,R
+Kyle Gilmour.m{2,SS,1
+Scott Ellerington.m{LF,2,RF,CF
+Brandon Spence.m{RF,CF,LF,R
+Lauryn Reeve.f{BC,RF,LF,R
+Toni Junkin.f{BC,3,R,RF,LF
+Rachel Jefferies.f{BC,R,3,RF,LF
+Shannon Ingram.f{BC,2,3,RF,LF
